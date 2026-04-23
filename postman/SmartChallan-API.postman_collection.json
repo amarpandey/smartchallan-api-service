@@ -1,0 +1,107 @@
+{
+  "info": {
+    "name": "SmartChallan API",
+    "description": "External API for SmartChallan clients. Use `POST /auth/login` first to obtain a JWT, then call the data endpoints with `Authorization: Bearer {{token}}`. The login request below automatically stores the token in the `token` collection variable.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://api.smartchallan.com", "type": "string" },
+    { "key": "email",   "value": "your_client_email@example.com", "type": "string" },
+    { "key": "password","value": "your_password",                  "type": "string" },
+    { "key": "token",   "value": "",                               "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "1. Login",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "login"]
+        },
+        "description": "Authenticate with your client credentials. The response contains a JWT `token` that must be used on all subsequent requests as `Authorization: Bearer <token>`. Default token lifetime is 12 hours."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const res = pm.response.json();",
+              "if (res && res.token) {",
+              "  pm.collectionVariables.set('token', res.token);",
+              "  console.log('Token stored in collection variable: token');",
+              "}",
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('token returned', () => pm.expect(res.token).to.be.a('string'));"
+            ]
+          }
+        }
+      ],
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"token\": \"eyJhbGci...\",\n  \"expiresIn\": \"12h\",\n  \"client\": {\n    \"id\": 42,\n    \"name\": \"Acme Logistics\",\n    \"email\": \"acme@example.com\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "2. Get RTO Data",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/rto-data?page=1&limit=300",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "rto-data"],
+          "query": [
+            { "key": "page",  "value": "1",   "description": "Page number, starts at 1" },
+            { "key": "limit", "value": "300", "description": "Vehicles per page (max 300, default 100)" }
+          ]
+        },
+        "description": "Returns RTO data for your **active** vehicles, paginated. Pagination is over the vehicle list; each vehicle's RTO record (insurance_exp, fitness_exp, pollution_exp, road_tax_exp, full rto_data JSON) is included.\n\nRequires `Authorization: Bearer <token>`."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 300,\n    \"total\": 742,\n    \"totalPages\": 3,\n    \"hasNext\": true,\n    \"hasPrev\": false\n  },\n  \"data\": [\n    {\n      \"id\": 101,\n      \"vehicle_number\": \"MH12AB1234\",\n      \"client_id\": 42,\n      \"rto_data\": { \"...\": \"...\" },\n      \"insurance_exp\": \"2026-06-26\",\n      \"road_tax_exp\": \"2027-10-24\",\n      \"fitness_exp\": \"2026-12-31\",\n      \"pollution_exp\": \"2026-05-10\",\n      \"updated_at\": \"2026-04-10T09:00:00.000Z\"\n    }\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "3. Get Challan Data",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/challan-data?page=1&limit=300",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "challan-data"],
+          "query": [
+            { "key": "page",  "value": "1",   "description": "Page number, starts at 1" },
+            { "key": "limit", "value": "300", "description": "Vehicles per page (max 300, default 100)" }
+          ]
+        },
+        "description": "Returns challan data for your **active** vehicles, paginated. Each record contains `pending_data` and `disposed_data` JSON arrays.\n\nRequires `Authorization: Bearer <token>`."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"meta\": {\n    \"page\": 1,\n    \"limit\": 300,\n    \"total\": 742,\n    \"totalPages\": 3,\n    \"hasNext\": true,\n    \"hasPrev\": false\n  },\n  \"data\": [\n    {\n      \"id\": 55,\n      \"vehicle_number\": \"MH12AB1234\",\n      \"client_id\": 42,\n      \"pending_data\": [ { \"challan_no\": \"...\", \"amount\": 500 } ],\n      \"disposed_data\": [ { \"challan_no\": \"...\", \"amount\": 200, \"payment_date\": \"...\" } ],\n      \"updated_at\": \"2026-04-10T09:00:00.000Z\"\n    }\n  ]\n}"
+        }
+      ]
+    }
+  ]
+}
