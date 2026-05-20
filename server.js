@@ -12,7 +12,7 @@ const challanRouter = require('./routes/challan');
 
 const app = express();
 app.use(helmet());
-app.use(cors());
+app.use(cors({ origin: 'https://server.driveinnovate.in' }));
 app.use(express.json());
 
 app.use((req, _res, next) => {
