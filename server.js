@@ -1,4 +1,7 @@
 require('dotenv').config();
+const fs      = require('fs');
+const http    = require('http');
+const https   = require('https');
 const express = require('express');
 const helmet  = require('helmet');
 const cors    = require('cors');
@@ -36,4 +39,29 @@ sequelize.authenticate()
   .then(() => console.log('[db] connected'))
   .catch(err => console.error('[db] connection failed:', err.message));
 
-app.listen(PORT, () => console.log(`sc-api-server listening on ${PORT}`));
+const { SSL_KEY, SSL_CERT, SSL_CA } = process.env;
+
+function loadSslOptions() {
+  if (!SSL_KEY || !SSL_CERT) return null;
+  try {
+    const options = {
+      key:  fs.readFileSync(SSL_KEY),
+      cert: fs.readFileSync(SSL_CERT),
+    };
+    if (SSL_CA) options.ca = fs.readFileSync(SSL_CA);
+    return options;
+  } catch (err) {
+    console.error('[ssl] failed to load certificates, falling back to HTTP:', err.message);
+    return null;
+  }
+}
+
+const sslOptions = loadSslOptions();
+
+if (sslOptions) {
+  https.createServer(sslOptions, app)
+    .listen(PORT, () => console.log(`sc-api-server listening on ${PORT} (https)`));
+} else {
+  http.createServer(app)
+    .listen(PORT, () => console.log(`sc-api-server listening on ${PORT} (http)`));
+}
